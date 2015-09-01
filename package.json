@@ -1,0 +1,25 @@
+{
+  "name": "zero-taurus",
+  "version": "0.0.1",
+  "keywords": [
+    "zero module"
+  ],
+  "description": "Provide enhanced express router functions for relier module.",
+  "zero": {
+    "dependencies": {
+      "request": "^0.0.1"
+    }
+  },
+  "author": "jiamiu",
+  "dependencies": {
+    "koa-router": "~5.1.2",
+    "roof-bus": "0.0.8",
+    "superagent": "^1.2.0"
+  },
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "ISC"
+}
