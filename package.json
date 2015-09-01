@@ -1,13 +1,13 @@
 {
   "name": "zero-taurus",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "keywords": [
     "zero module"
   ],
   "description": "Provide enhanced express router functions for relier module.",
   "zero": {
     "dependencies": {
-      "request": "^0.0.1"
+      "request": "^0.2.0"
     }
   },
   "author": "jiamiu",
