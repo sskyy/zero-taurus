@@ -7,21 +7,20 @@ var taurusCollection = require('taurus-mongo/lib/collection')
 
 
 
-
 ///////////////////////////
 //           query
 ///////////////////////////
 
-function *query() {
+function *query( database, args) {
   //if( !this.request.body.todos ) return this.body = []
   //TODO 多个query
   var results = {}
 
-  for (var queryName in this.request.body) {
-    results[queryName] = yield taurusCollection.pull(this.request.body[queryName])
+  for (var queryName in args) {
+    results[queryName] = yield taurusCollection.pull(database, args[queryName])
   }
 
-  this.body = results
+  return results
 }
 
 
@@ -57,16 +56,16 @@ function *query() {
 
 
 
-function *push() {
-  this.body = yield taurusCollection.push(this.request.body.ast, this.request.body.rawNodesToSave, this.request.body.trackerRelationMap)
+function *push(database, args) {
+  return yield taurusCollection.push(database, args.ast, args.rawNodesToSave, args.trackerRelationMap)
 }
 
 ///////////////////////
 //           destroy
 ///////////////////////
-function *destroy(){
+function *destroy(database, args){
   console.log( "destroying===>",this.body )
-  this.body = yield taurusCollection.destroy( this.request.body.type, this.request.body.id )
+  return yield taurusCollection.destroy( database, args.type, args.id )
 }
 
 
@@ -74,24 +73,35 @@ function *destroy(){
 ////////////////////////////
 //               exports
 ////////////////////////////
+//TODO 写到配置里去
+var database = 'mongodb://localhost:27017/test'
 
 var taurusModule = {
-  backend: 'http://127.0.0.1:7474/db/data/transaction/commit',
   routes: {
     'POST /taurus/query': function*() {
+      var result
       if (this.query.type === 'query') {
-        return yield query.call(this)
+        result = yield query(database, this.request.body)
+
       } else if (this.query.type === 'push') {
-        return yield push.call(this)
+        result = yield push(database, this.request.body)
+
       } else if (this.query.type === 'update') {
-        return yield create.call(this)
+        result = yield create(database, this.request.body)
+
       } else if (this.query.type === 'destroy') {
-        return yield destroy.call(this)
+        result = yield destroy(database, this.request.body)
+
       } else {
         this.body = `unknown query type ${this.query.type}`
       }
+      console.log('query result', result)
+      this.body = result
     }
-  }
+  },
+  query,
+  push,
+  destroy
 }
 
 module.exports = taurusModule
