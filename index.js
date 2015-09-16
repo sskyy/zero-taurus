@@ -1,26 +1,18 @@
+'use strict'
 var _ = require('lodash')
 var request = require('superagent')
 var util = require('./util')
 var uuid = require('uuid')
-var taurusCollection = require('taurus-mongo/lib/collection')
+//var taurusCollection = require('taurus-mongo/lib/collection')
+var Taurus = require('taurus-mysql')
 
 
-
-
-///////////////////////////
-//           query
-///////////////////////////
-
-function *query( database, args) {
-  //if( !this.request.body.todos ) return this.body = []
-  //TODO 多个query
-  var results = {}
-
-  for (var queryName in args) {
-    results[queryName] = yield taurusCollection.pull(database, args[queryName])
+function partial(generatorFn) {
+  var args = Array.prototype.slice.call(arguments, 1)
+  return function *() {
+    var runtimeArgs = Array.prototype.slice.call(arguments, 0)
+    return yield generatorFn.apply(this, args.concat(runtimeArgs))
   }
-
-  return results
 }
 
 
@@ -56,52 +48,74 @@ function *query( database, args) {
 
 
 
-function *push(database, args) {
-  return yield taurusCollection.push(database, args.ast, args.rawNodesToSave, args.trackerRelationMap)
-}
-
 ///////////////////////
 //           destroy
 ///////////////////////
-function *destroy(database, args){
-  console.log( "destroying===>",this.body )
-  return yield taurusCollection.destroy( database, args.type, args.id )
-}
-
 
 
 ////////////////////////////
 //               exports
 ////////////////////////////
 //TODO 写到配置里去
-var database = 'mongodb://localhost:27017/test'
 
 var taurusModule = {
-  routes: {
-    'POST /taurus/query': function*() {
-      var result
-      if (this.query.type === 'query') {
-        result = yield query(database, this.request.body)
+  collections: {},
+  extend: function (module) {
+    //TODO 目前只支持一个依赖模块
+    if( !module.entries || !module.entries.spec ) return
 
-      } else if (this.query.type === 'push') {
-        result = yield push(database, this.request.body)
+    var types = {}
+    for (let entryName in module.entries.spec) {
+      if (module.entries.spec[entryName]) {
 
-      } else if (this.query.type === 'update') {
-        result = yield create(database, this.request.body)
+        _.extend(types, _.cloneDeep(_.indexBy(module.entries.spec[entryName].types, function (t) {
+          return t.type
+        })))
 
-      } else if (this.query.type === 'destroy') {
-        result = yield destroy(database, this.request.body)
-
-      } else {
-        this.body = `unknown query type ${this.query.type}`
       }
-      console.log('query result', result)
-      this.body = result
     }
+
+
+    console.log('initializing taurus collection', module.name, module.connection, _.values(types))
+
+    if( module.connection ){
+      this.collections[module.name] = new Taurus(module.connection, _.values(types))
+      this.addRoute(module.name)
+    }else{
+      //TODO 增加 load types的版本
+    }
+
   },
-  query,
-  push,
-  destroy
+  addRoute: function (name) {
+    this.routes[`POST /taurus/${name}/query`] = partial(this.routeHandler, name)
+  },
+  getCollection : function(name){
+    return taurusModule.collections[name]
+  },
+  routes : {},
+  routeHandler: function *(collectionName) {
+    var result
+    var args = this.request.body
+
+    if (this.query.type === 'query') {
+      result = {}
+      for (let queryName in args) {
+        result[queryName] = yield taurusModule.collections[collectionName].pull(args[queryName])
+      }
+
+    } else if (this.query.type === 'push') {
+      result = yield taurusModule.collections[collectionName].push(args.ast, args.rawNodesToSave, args.trackerRelationMap)
+
+
+    } else if (this.query.type === 'destroy') {
+      result = yield taurusModule.collections[collectionName].destroy(args.type, args.id)
+
+    } else {
+      this.body = `unknown query type ${this.query.type}`
+    }
+
+    this.body = result
+  },
 }
 
 module.exports = taurusModule
