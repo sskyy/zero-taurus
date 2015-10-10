@@ -60,8 +60,7 @@ function partial(generatorFn) {
 
 var taurusModule = {
   collections: {},
-  extend: function (module) {
-    //TODO 目前只支持一个依赖模块
+  extend: function *(module) {
     if( !module.entries || !module.entries.spec ) return
 
     var types = {}
@@ -80,6 +79,7 @@ var taurusModule = {
 
     if( module.connection ){
       this.collections[module.name] = new Taurus(module.connection, _.values(types))
+      yield this.collections[module.name].bootstrap()
       this.addRoute(module.name)
     }else{
       //TODO 增加 load types的版本
